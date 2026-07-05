@@ -1,0 +1,14 @@
+{
+	"luci-app-srun-login": {
+		"description": "Grant access to SRun campus login configuration",
+		"read": {
+			"ubus": {
+				"rc": [ "list" ]
+			},
+			"uci": [ "srun" ]
+		},
+		"write": {
+			"uci": [ "srun" ]
+		}
+	}
+}

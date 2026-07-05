@@ -1,0 +1,13 @@
+{
+	"admin/services/srun-login": {
+		"title": "校园网登录",
+		"order": 20,
+		"action": {
+			"type": "view",
+			"path": "services/srun-login"
+		},
+		"depends": {
+			"acl": [ "luci-app-srun-login" ]
+		}
+	}
+}

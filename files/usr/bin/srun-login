@@ -1,0 +1,446 @@
+#!/usr/bin/ucode
+
+import * as fs from "fs";
+import * as math from "math";
+
+const ALPHA = "LVoJPiCN2R8G90yg+hmFHuacZ1OWMnrsSTXkYpUq/3dlbfKwv6xztjI7DeBE45QA";
+const U32 = 4294967296;
+
+function floor(x) { return int(x); }
+function pow(a, b) { return math.pow(a, b); }
+function abs(x) { return math.abs(x); }
+function sin(x) { return math.sin(x); }
+
+function u32(x) {
+	x = x & 0xffffffff;
+	return x < 0 ? x + U32 : x;
+}
+
+function add32(...args) {
+	let s = 0;
+	for (let v in args)
+		s = (s + u32(v)) % U32;
+	return s;
+}
+
+function rshift(x, n) {
+	return floor(u32(x) / pow(2, n));
+}
+
+function rotl(x, n) {
+	return u32((x << n) | rshift(x, 32 - n));
+}
+
+function rotr(x, n) {
+	return u32(rshift(x, n) | (x << (32 - n)));
+}
+
+function byte_at(s, i) {
+	return i < length(s) ? ord(substr(s, i, 1)) : 0;
+}
+
+function le_word(s, i) {
+	return byte_at(s, i) | (byte_at(s, i + 1) << 8) | (byte_at(s, i + 2) << 16) | (byte_at(s, i + 3) << 24);
+}
+
+function word_to_le(w) {
+	w = u32(w);
+	return chr(w & 255) + chr(rshift(w, 8) & 255) + chr(rshift(w, 16) & 255) + chr(rshift(w, 24) & 255);
+}
+
+function hex_le_word(w) {
+	w = u32(w);
+	return sprintf("%02x%02x%02x%02x", w & 255, rshift(w, 8) & 255, rshift(w, 16) & 255, rshift(w, 24) & 255);
+}
+
+function md5_raw(msg) {
+	const s = [7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22,
+		5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20,
+		4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23,
+		6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21];
+	const k = [];
+	for (let i = 0; i < 64; i++)
+		k[i] = floor(abs(sin(i + 1)) * U32);
+
+	let bit_len = length(msg) * 8;
+	msg += chr(0x80);
+	while ((length(msg) % 64) != 56)
+		msg += chr(0);
+	for (let i = 0; i < 8; i++)
+		msg += chr(floor(bit_len / pow(2, 8 * i)) & 255);
+
+	let a0 = 0x67452301, b0 = 0xefcdab89, c0 = 0x98badcfe, d0 = 0x10325476;
+
+	for (let off = 0; off < length(msg); off += 64) {
+		let m = [];
+		for (let i = 0; i < 16; i++)
+			m[i] = le_word(msg, off + i * 4);
+
+		let a = a0, b = b0, c = c0, d = d0;
+		for (let i = 0; i < 64; i++) {
+			let f, g;
+			if (i < 16) {
+				f = (b & c) | ((~b) & d);
+				g = i;
+			} else if (i < 32) {
+				f = (d & b) | ((~d) & c);
+				g = (5 * i + 1) % 16;
+			} else if (i < 48) {
+				f = b ^ c ^ d;
+				g = (3 * i + 5) % 16;
+			} else {
+				f = c ^ (b | (~d));
+				g = (7 * i) % 16;
+			}
+			let tmp = d;
+			d = c;
+			c = b;
+			b = add32(b, rotl(add32(a, f, k[i], m[g]), s[i]));
+			a = tmp;
+		}
+		a0 = add32(a0, a);
+		b0 = add32(b0, b);
+		c0 = add32(c0, c);
+		d0 = add32(d0, d);
+	}
+
+	return word_to_le(a0) + word_to_le(b0) + word_to_le(c0) + word_to_le(d0);
+}
+
+function md5_hex(msg) {
+	let raw = md5_raw(msg);
+	let out = "";
+	for (let i = 0; i < length(raw); i++)
+		out += sprintf("%02x", ord(substr(raw, i, 1)));
+	return out;
+}
+
+function hmac_md5_hex(key, msg) {
+	if (length(key) > 64)
+		key = md5_raw(key);
+	while (length(key) < 64)
+		key += chr(0);
+	let o = "", inn = "";
+	for (let i = 0; i < 64; i++) {
+		let c = ord(substr(key, i, 1));
+		o += chr(c ^ 0x5c);
+		inn += chr(c ^ 0x36);
+	}
+	return md5_hex(o + md5_raw(inn + msg));
+}
+
+function sha1_hex(msg) {
+	let bit_len = length(msg) * 8;
+	msg += chr(0x80);
+	while ((length(msg) % 64) != 56)
+		msg += chr(0);
+	for (let i = 7; i >= 0; i--)
+		msg += chr(floor(bit_len / pow(2, 8 * i)) & 255);
+
+	let h0 = 0x67452301, h1 = 0xefcdab89, h2 = 0x98badcfe, h3 = 0x10325476, h4 = 0xc3d2e1f0;
+
+	for (let off = 0; off < length(msg); off += 64) {
+		let w = [];
+		for (let i = 0; i < 16; i++) {
+			let j = off + i * 4;
+			w[i] = (byte_at(msg, j) << 24) | (byte_at(msg, j + 1) << 16) | (byte_at(msg, j + 2) << 8) | byte_at(msg, j + 3);
+		}
+		for (let i = 16; i < 80; i++)
+			w[i] = rotl(w[i - 3] ^ w[i - 8] ^ w[i - 14] ^ w[i - 16], 1);
+
+		let a = h0, b = h1, c = h2, d = h3, e = h4;
+		for (let i = 0; i < 80; i++) {
+			let f, k;
+			if (i < 20) {
+				f = (b & c) | ((~b) & d); k = 0x5a827999;
+			} else if (i < 40) {
+				f = b ^ c ^ d; k = 0x6ed9eba1;
+			} else if (i < 60) {
+				f = (b & c) | (b & d) | (c & d); k = 0x8f1bbcdc;
+			} else {
+				f = b ^ c ^ d; k = 0xca62c1d6;
+			}
+			let temp = add32(rotl(a, 5), f, e, k, w[i]);
+			e = d; d = c; c = rotl(b, 30); b = a; a = temp;
+		}
+		h0 = add32(h0, a); h1 = add32(h1, b); h2 = add32(h2, c); h3 = add32(h3, d); h4 = add32(h4, e);
+	}
+
+	return sprintf("%08x%08x%08x%08x%08x", u32(h0), u32(h1), u32(h2), u32(h3), u32(h4));
+}
+
+function sencode(msg, key) {
+	let l = length(msg), out = [];
+	for (let i = 0; i < l; i += 4)
+		push(out, byte_at(msg, i) | (byte_at(msg, i + 1) << 8) | (byte_at(msg, i + 2) << 16) | (byte_at(msg, i + 3) << 24));
+	if (key)
+		push(out, l);
+	return out;
+}
+
+function lencode(arr) {
+	let out = "";
+	for (let v in arr)
+		out += word_to_le(v);
+	return out;
+}
+
+function xencode(msg, key) {
+	if (msg == "")
+		return "";
+	let pwd = sencode(msg, true);
+	let pwdk = sencode(key, false);
+	while (length(pwdk) < 4)
+		push(pwdk, 0);
+	let n = length(pwd) - 1;
+	let z = pwd[n], y = pwd[0], c = 0x9e3779b9, d = 0;
+	let q = floor(6 + 52 / (n + 1));
+	while (q-- > 0) {
+		d = add32(d, c);
+		let e = rshift(d, 2) & 3;
+		let p;
+		for (p = 0; p < n; p++) {
+			y = pwd[p + 1];
+			let m = (rshift(z, 5) ^ (y << 2));
+			m = add32(m, ((rshift(y, 3) ^ (z << 4)) ^ (d ^ y)));
+			m = add32(m, (pwdk[(p & 3) ^ e] ^ z));
+			pwd[p] = add32(pwd[p], m);
+			z = pwd[p];
+		}
+		y = pwd[0];
+		let m = (rshift(z, 5) ^ (y << 2));
+		m = add32(m, ((rshift(y, 3) ^ (z << 4)) ^ (d ^ y)));
+		m = add32(m, (pwdk[(p & 3) ^ e] ^ z));
+		pwd[n] = add32(pwd[n], m);
+		z = pwd[n];
+	}
+	return lencode(pwd);
+}
+
+function srun_base64(s) {
+	let x = length(s) % 3;
+	if (x)
+		for (let i = 0; i < 3 - x; i++)
+			s += chr(0);
+	let out = "";
+	for (let i = 0; i < length(s); i += 3) {
+		let a = (byte_at(s, i) << 16) | (byte_at(s, i + 1) << 8) | byte_at(s, i + 2);
+		out += substr(ALPHA, rshift(a, 18) & 63, 1);
+		out += substr(ALPHA, rshift(a, 12) & 63, 1);
+		out += substr(ALPHA, rshift(a, 6) & 63, 1);
+		out += substr(ALPHA, a & 63, 1);
+	}
+	if (x == 1)
+		out = substr(out, 0, length(out) - 2) + "==";
+	else if (x == 2)
+		out = substr(out, 0, length(out) - 1) + "=";
+	return out;
+}
+
+function urlencode(s) {
+	let out = "";
+	for (let i = 0; i < length(s); i++) {
+		let c = byte_at(s, i);
+		if ((c >= 48 && c <= 57) || (c >= 65 && c <= 90) || (c >= 97 && c <= 122) || c == 45 || c == 46 || c == 95 || c == 126)
+			out += chr(c);
+		else
+			out += sprintf("%%%02X", c);
+	}
+	return out;
+}
+
+function shellquote(s) {
+	return "'" + replace(s, "'", "'\\''") + "'";
+}
+
+function run(cmd) {
+	let p = fs.popen(cmd, "r");
+	if (!p)
+		return "";
+	let out = p.read("all");
+	p.close();
+	return out;
+}
+
+function http_get(url) {
+	return run("uclient-fetch -q -T 10 -O - " + shellquote(url) + " 2>/dev/null");
+}
+
+function extract_jsonp(text) {
+	let a = index(text, "("), b = rindex(text, ")");
+	if (a < 0 || b <= a)
+		return null;
+	return json(substr(text, a + 1, b - a - 1));
+}
+
+function field(text, name) {
+	let re = "\"" + name + "\":\"([^\"]*)\"";
+	let m = match(text, re);
+	return m ? m[1] : null;
+}
+
+function logmsg(msg) {
+	warn("[srun-login] " + msg + "\n");
+	system(["logger", "-t", "srun-login", msg]);
+}
+
+function load_kv_file(path, c) {
+	let text = fs.readfile(path);
+	if (!text)
+		return;
+	for (let line in split(text, "\n")) {
+		line = trim(line);
+		if (!line || substr(line, 0, 1) == "#")
+			continue;
+		let p = index(line, "=");
+		if (p < 0)
+			continue;
+		let k = trim(substr(line, 0, p));
+		let v = trim(substr(line, p + 1));
+		if (substr(v, 0, 1) == "'" || substr(v, 0, 1) == "\"")
+			v = substr(v, 1, length(v) - 2);
+		c[k] = v;
+	}
+}
+
+function load_uci_config(c) {
+	let opts = ["enabled", "host", "protocol", "username", "password", "sleeptime", "ac_id", "n", "type", "enc"];
+	for (let opt in opts) {
+		let v = trim(run("uci -q get srun.config." + opt + " 2>/dev/null"));
+		if (v != "")
+			c[opt] = v;
+	}
+}
+
+function load_config() {
+	let c = {
+		enabled: "1",
+		host: "202.4.130.82",
+		protocol: "http",
+		username: "",
+		password: "",
+		sleeptime: 30,
+		ac_id: "1",
+		n: "200",
+		type: "1",
+		enc: "srun_bx1"
+	};
+	load_kv_file("/etc/srun-login.conf", c);
+	load_uci_config(c);
+	return c;
+}
+
+function enabled(c) {
+	return c.enabled != "0" && c.enabled != "false" && c.enabled != "off";
+}
+
+function api_base(c) {
+	return c.protocol + "://" + c.host;
+}
+
+function rad_info(c) {
+	let text = http_get(api_base(c) + "/cgi-bin/rad_user_info?callback=JQuery&_=" + time());
+	return { text, data: extract_jsonp(text) };
+}
+
+function update_acid(c) {
+	let text = http_get("http://" + c.host + "/");
+	let m = match(text, "ac_id=([0-9]+)");
+	if (m)
+		c.ac_id = m[1];
+}
+
+function get_token(c, ip) {
+	let cb = "jQuery" + int(time() * 1000);
+	let url = api_base(c) + "/cgi-bin/get_challenge?callback=" + cb + "&username=" + urlencode(c.username) + "&ip=" + urlencode(ip) + "&_=" + int(time() * 1000);
+	let text = http_get(url);
+	let data = extract_jsonp(text);
+	return data ? data.challenge : null;
+}
+
+function login_once(c) {
+	let ri = rad_info(c);
+	if (!ri.data) {
+		logmsg("login server unavailable");
+		return false;
+	}
+	if (ri.data.error != "not_online_error") {
+		logmsg("already online");
+		return true;
+	}
+
+	update_acid(c);
+	let ip = ri.data.client_ip || ri.data.online_ip;
+	let token = get_token(c, ip);
+	if (!token) {
+		logmsg("cannot get challenge token");
+		return false;
+	}
+
+	let info = sprintf("{\"username\":\"%s\",\"password\":\"%s\",\"ip\":\"%s\",\"acid\":\"%s\",\"enc_ver\":\"%s\"}",
+		c.username, c.password, ip, c.ac_id, c.enc);
+	let enc_info = "{SRBX1}" + srun_base64(xencode(info, token));
+	let hmd5 = hmac_md5_hex(token, c.password);
+	let chkstr = token + c.username + token + hmd5 + token + c.ac_id + token + ip + token + c.n + token + c.type + token + enc_info;
+	let chksum = sha1_hex(chkstr);
+	let cb = "jQuery" + int(time() * 1000);
+
+	let params = "callback=" + cb +
+		"&action=login" +
+		"&username=" + urlencode(c.username) +
+		"&password=" + urlencode("{MD5}" + hmd5) +
+		"&ac_id=" + urlencode(c.ac_id) +
+		"&ip=" + urlencode(ip) +
+		"&chksum=" + urlencode(chksum) +
+		"&info=" + urlencode(enc_info) +
+		"&n=" + urlencode(c.n) +
+		"&type=" + urlencode(c.type) +
+		"&os=linux&name=linux&double_stack=0" +
+		"&_=" + int(time() * 1000);
+
+	let text = http_get(api_base(c) + "/cgi-bin/srun_portal?" + params);
+	let data = extract_jsonp(text);
+	if (data && data.error == "ok") {
+		logmsg("login success");
+		return true;
+	}
+	logmsg("login failed: " + (data ? (data.error || data.res || text) : text));
+	return false;
+}
+
+if (length(ARGV) && ARGV[0] == "selftest") {
+	print("md5=", md5_hex("abc"), "\n");
+	print("hmac=", hmac_md5_hex("key", "The quick brown fox jumps over the lazy dog"), "\n");
+	print("sha1=", sha1_hex("abc"), "\n");
+	let token = "0123456789abcdef";
+	let info = "{\"username\":\"u\",\"password\":\"p\",\"ip\":\"1.2.3.4\",\"acid\":\"1\",\"enc_ver\":\"srun_bx1\"}";
+	print("xinfo=", "{SRBX1}" + srun_base64(xencode(info, token)), "\n");
+	exit(0);
+}
+
+let once = (length(ARGV) && ARGV[0] == "once");
+if (once) {
+	let c = load_config();
+	if (!enabled(c)) {
+		logmsg("service disabled");
+		exit(1);
+	}
+	if (!c.username || !c.password) {
+		logmsg("username or password not configured");
+		exit(1);
+	}
+	exit(login_once(c) ? 0 : 1);
+}
+
+logmsg("service started");
+while (true) {
+	let c = load_config();
+	let interval = int(c.sleeptime || 30);
+	if (interval < 10)
+		interval = 10;
+
+	if (enabled(c) && c.username && c.password)
+		login_once(c);
+
+	sleep(interval * 1000);
+}

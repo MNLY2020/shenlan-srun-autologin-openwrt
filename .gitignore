@@ -1,0 +1,12 @@
+*.ipk
+*.tar.gz
+*.tar.xz
+*.zip
+/bin/
+/build_dir/
+/dl/
+/feeds/
+/logs/
+/staging_dir/
+/tmp/
+.DS_Store
