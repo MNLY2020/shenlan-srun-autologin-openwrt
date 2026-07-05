@@ -3,6 +3,11 @@
 Lightweight SRun / Shenlan campus portal auto-login for OpenWrt, with a LuCI
 configuration page.
 
+This package is configured and tested for the Beijing University of Chemical
+Technology (BUCT, 北京化工大学) campus network environment by default.
+In theory, it can also work with other SRun / Shenlan gateways after changing
+the gateway host, AC ID, protocol, and related portal parameters.
+
 ## Features
 
 - No Python dependency.
@@ -15,6 +20,17 @@ configuration page.
 ## Compatibility
 
 Recommended for OpenWrt 23.05 and 24.10 with the modern JavaScript LuCI stack.
+
+The default configuration targets BUCT:
+
+- Gateway host: `202.4.130.82`
+- Protocol: `http`
+- AC ID: `1`
+- Encoding: `srun_bx1`
+
+For other schools or SRun deployments, use these defaults only as a reference.
+Check your own portal request parameters and update `/etc/config/srun`
+accordingly.
 
 Required packages:
 
@@ -85,6 +101,13 @@ config login 'config'
 ```
 
 The exact `host`, `ac_id`, and protocol depend on your campus portal.
+
+For non-BUCT networks, the most common fields to change are:
+
+- `host`: the SRun / Shenlan gateway host or IP address
+- `protocol`: usually `http` or `https`
+- `ac_id`: the access controller ID used by your portal
+- `n`, `type`, `enc`: portal-specific SRun parameters
 
 ## Notes
 
