@@ -1,5 +1,7 @@
 # shenlan-srun-autologin-openwrt
 
+[English](README.md) | [简体中文](README.zh-CN.md)
+
 Lightweight SRun / Shenlan campus portal auto-login for OpenWrt, with a LuCI
 configuration page.
 
