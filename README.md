@@ -119,6 +119,11 @@ This project is intended for personal networks where you are authorized to use
 automatic campus portal login. Please follow your school or network operator's
 acceptable-use policy.
 
+## Contributors
+
+- [MNLY2020](https://github.com/MNLY2020): project author and maintainer.
+- OpenAI Codex: development and documentation assistant.
+
 ## License
 
 MIT License. See [LICENSE](LICENSE).

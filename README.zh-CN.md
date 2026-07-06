@@ -111,6 +111,11 @@ config login 'config'
 
 本项目仅适用于你有权使用自动登录的个人网络环境。请遵守学校或网络运营方的使用规范。
 
+## 贡献者
+
+- [MNLY2020](https://github.com/MNLY2020)：项目作者和维护者。
+- OpenAI Codex：开发和文档协作助手。
+
 ## 许可证
 
 MIT License，详见 [LICENSE](LICENSE)。
