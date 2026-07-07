@@ -122,7 +122,7 @@ acceptable-use policy.
 ## Contributors
 
 - [MNLY2020](https://github.com/MNLY2020): project author and maintainer.
-- OpenAI Codex: development and documentation assistant.
+- [Codex](https://github.com/codex): development and documentation assistant.
 
 ## License
 

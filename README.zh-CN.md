@@ -114,7 +114,7 @@ config login 'config'
 ## 贡献者
 
 - [MNLY2020](https://github.com/MNLY2020)：项目作者和维护者。
-- OpenAI Codex：开发和文档协作助手。
+- [Codex](https://github.com/codex)：开发和文档协作助手。
 
 ## 许可证
 
